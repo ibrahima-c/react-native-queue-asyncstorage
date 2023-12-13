@@ -52,34 +52,43 @@ export default class Database {
     setTimeout(await this._backup, BACKUP_TIME);
   }
 
-  create = (obj) => {
+  create = async (obj) => {
     let shouldSkip = false; // if obj.id is already in array
 
     for (let i = 0; i < this.db.length; i += 1) {
       if (this.db[i] === obj.id) shouldSkip = true;
     }
 
-    if (!shouldSkip) this.db.push(obj);
+    if (!shouldSkip) {
+      this.db.push(obj);
+      await this._backup();
+    }
+
+
   };
 
   objects = () => this.db.slice();
 
-  save = (obj) => {
+  save = async (obj) => {
     for (let i = 0; i < this.db.length; i += 1) {
       if (this.db[i] === obj.id) this.db[i] = obj;
     }
+    await this._backup()
   }
 
-  saveAll = (objs) => {
+  saveAll = async (objs) => {
     this.db = objs;
+    await this._backup()
   }
 
-  delete = (obj) => {
+  delete = async (obj) => {
     this.db = this.db.filter(o => o.id !== obj.id);
+    await this._backup()
   };
 
-  deleteAll = () => {
+  deleteAll = async () => {
     this.db = [];
+    await this._backup()
   };
 
 }
