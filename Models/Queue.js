@@ -85,7 +85,7 @@ export class Queue {
    * @param options {object} - Job related options like timeout etc. See README.md for job options info.
    * @param startQueue - {boolean} - Whether or not to immediately begin prcessing queue. If false queue.start() must be manually called.
    */
-  createJob(name, payload = {}, options = {}, startQueue = true) {
+  async createJob(name, payload = {}, options = {}, startQueue = true) {
 
     if (!name) {
       throw new Error('Job name must be supplied.');
@@ -109,7 +109,7 @@ export class Queue {
       this.executeFailedJobsOnStart = false;
     }
 
-    this.jobDB.create({
+    await this.jobDB.create({
       id: uuid.v4(),
       name,
       payload: JSON.stringify(payload),
@@ -324,9 +324,7 @@ export class Queue {
     this.worker.executeJobLifecycleCallback('onStart', jobName, jobId, jobPayload);
 
     try {
-      const executionResult = await this.worker.executeJob(job); // here we catch js/network errors
-      
-      if (!executionResult.ok) throw new Error('Execution failure'); // here we catch http errors
+      await this.worker.executeJob(job); // here we catch js/network errors
 
       // On successful job completion, remove job
       this.jobDB.delete(job);
