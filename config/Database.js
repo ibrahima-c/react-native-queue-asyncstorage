@@ -49,14 +49,14 @@ export default class Database {
   _backup = async () => {
     await storage.save(Job, this.db.slice());
 
-    setTimeout(await this._backup, BACKUP_TIME);
+    //setTimeout(await this._backup, BACKUP_TIME);
   }
 
   create = async (obj) => {
     let shouldSkip = false; // if obj.id is already in array
 
     for (let i = 0; i < this.db.length; i += 1) {
-      if (this.db[i] === obj.id) shouldSkip = true;
+      if (this.db[i].id === obj.id) shouldSkip = true;
     }
 
     if (!shouldSkip) {
@@ -71,7 +71,7 @@ export default class Database {
 
   save = async (obj) => {
     for (let i = 0; i < this.db.length; i += 1) {
-      if (this.db[i] === obj.id) this.db[i] = obj;
+      if (this.db[i].id === obj.id) this.db[i] = obj;
     }
     await this._backup()
   }
