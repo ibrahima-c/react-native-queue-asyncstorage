@@ -27,7 +27,8 @@
   "dependencies": {
     "lodash": "^4.17.11",
     "promise-reflect": "^1.1.0",
-    "react-native-uuid": "2.0.1"
+    "react-native-uuid": "2.0.1",
+    "react-native-event-listeners": "1.0.7"
   },
   "devDependencies": {
     "babel-eslint": "^8.0.3",
