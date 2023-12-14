@@ -11,6 +11,8 @@ import _ from 'lodash';
 import JobDatabase from '../config/Database';
 import Worker from './Worker';
 
+import { EventRegister } from 'react-native-event-listeners';
+
 
 export class Queue {
 
@@ -349,6 +351,7 @@ export class Queue {
       this.worker.executeJobLifecycleCallback('onComplete', jobName, jobId, jobPayload);
 
       //console.log('NODE_MODULE.QueueJS.processJob::complete', { job });
+      EventRegister.emit('rn-queue-job-event', { status: 'complete', jobName, jobId, jobPayload });
     } catch (error) {
       //console.log('NODE_MODULE.QueueJS.processJob::error', { error });
       // Handle job failure logic, including retries.
