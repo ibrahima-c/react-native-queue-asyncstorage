@@ -23,6 +23,7 @@ export class Queue {
    * @param executeFailedJobsOnStart {boolean} - Indicates if previously failed jobs will be executed on start (actually when created new job).
    */
   constructor(executeFailedJobsOnStart = false) {
+    //console.log('NODE_MODULE.QueueJS.constructor::executeFailedJobsOnStart', { executeFailedJobsOnStart });
     this.jobDB = null;
     this.worker = new Worker();
     this.status = 'inactive';
@@ -35,6 +36,7 @@ export class Queue {
    *
    */
   init = async () => {
+    //console.log('NODE_MODULE.QueueJS.init');
     if (this.jobDB === null) {
       this.jobDB = new JobDatabase();
       await this.jobDB.init();
@@ -61,6 +63,7 @@ export class Queue {
    * @param options {object} - Worker options. See README.md for worker options info.
    */
   addWorker(jobName, worker, options = {}) {
+    //console.log('NODE_MODULE.QueueJS.addWorker', { jobName, worker, options });
     this.worker.addWorker(jobName, worker, options);
   }
 
@@ -71,6 +74,7 @@ export class Queue {
    * @param jobName {string} - Name associated with jobs assigned to this worker.
    */
   removeWorker(jobName) {
+    //console.log('NODE_MODULE.QueueJS.removeWorker', { jobName });
     this.worker.removeWorker(jobName);
   }
 
@@ -86,6 +90,7 @@ export class Queue {
    * @param startQueue - {boolean} - Whether or not to immediately begin prcessing queue. If false queue.start() must be manually called.
    */
   async createJob(name, payload = {}, options = {}, startQueue = true) {
+    //console.log('NODE_MODULE.QueueJS.createJob::debut', { name, payload, options, startQueue });
 
     if (!name) {
       throw new Error('Job name must be supplied.');
@@ -98,13 +103,14 @@ export class Queue {
 
     // here we reset `failed` prop
     if (this.executeFailedJobsOnStart) {
+      //console.log('NODE_MODULE.QueueJS.createJob::in-executeFailedJobsOnStart');
       const jobs = this.jobDB.objects();
 
       for (let i = 0; i < jobs.length; i += 1) {
         jobs[i].failed = null;
       }
 
-      this.jobDB.saveAll(jobs);
+      await this.jobDB.saveAll(jobs);
 
       this.executeFailedJobsOnStart = false;
     }
@@ -125,6 +131,7 @@ export class Queue {
 
     // Start queue on job creation if it isn't running by default.
     if (startQueue && this.status === 'inactive') {
+      //console.log('NODE_MODULE.QueueJS.createJob::will-start-queue');
       this.start();
     }
 
@@ -154,6 +161,7 @@ export class Queue {
    * @return {boolean|undefined} - False if queue is already started. Otherwise nothing is returned when queue finishes processing.
    */
   async start(lifespan = 0) {
+    //console.log('NODE_MODULE.QueueJS.start::debut', { lifespan, status: this.status });
 
     // If queue is already running, don't fire up concurrent loop.
     if (this.status == 'active') {
@@ -176,6 +184,7 @@ export class Queue {
     }
 
     while (this.status === 'active' && concurrentJobs.length) {
+      //console.log('NODE_MODULE.QueueJS.start::while-loop', { concurrentJobs });
 
       // Loop over jobs and process them concurrently.
       const processingJobs = concurrentJobs.map(job => {
@@ -198,6 +207,7 @@ export class Queue {
     }
 
     this.status = 'inactive';
+    //console.log('NODE_MODULE.QueueJS.start::end', { status: this.status, concurrentJobs });
 
   }
 
@@ -210,6 +220,7 @@ export class Queue {
    *
    */
   stop() {
+    //console.log('NODE_MODULE.QueueJS.stop', {});
     this.status = 'inactive';
   }
 
@@ -221,6 +232,7 @@ export class Queue {
    * @return {promise} - Promise that resolves to a collection of all the jobs in the queue.
    */
   async getJobs() {
+    //console.log('NODE_MODULE.QueueJS.getJobs', {});
     return this.jobDB.objects();
   }
 
@@ -239,6 +251,7 @@ export class Queue {
    * @return {promise} - Promise resolves to an array of job(s) to be processed next by the queue.
    */
   async getConcurrentJobs(queueLifespanRemaining = 0) {
+    //console.log('NODE_MODULE.QueueJS.getConcurrentJobs::queueLifespanRemaining', { queueLifespanRemaining });
 
     let concurrentJobs = [];
 
@@ -266,7 +279,7 @@ export class Queue {
       const concurrency = this.worker.getConcurrency(nextJob.name);
 
       let allRelatedJobs = this.jobDB.objects();
-      allRelatedJobs = (queueLifespanRemaining) 
+      allRelatedJobs = (queueLifespanRemaining)
         ? allRelatedJobs.filter(j => (j.name === nextJob.name && !j.active && j.failed === null && j.timeout > 0 && j.timeout < timeoutUpperBound))
         : allRelatedJobs.filter(j => (j.name === nextJob.name && !j.active && j.failed === null));
       allRelatedJobs = _.orderBy(allRelatedJobs, ['priority', 'created'], ['asc', 'asc']);
@@ -292,6 +305,7 @@ export class Queue {
 
     }
 
+    //console.log('NODE_MODULE.QueueJS.getConcurrentJobs::concurrentJobs', { concurrentJobs });
     return concurrentJobs;
 
   }
@@ -312,6 +326,7 @@ export class Queue {
    * @param job {object} - Job model object
    */
   async processJob(job) {
+    //console.log('NODE_MODULE.QueueJS.processJob::job', { job });
 
     // Data must be cloned off the job object for several lifecycle callbacks to work correctly.
     // This is because job is deleted before some callbacks are called if job processed successfully.
@@ -327,13 +342,15 @@ export class Queue {
       await this.worker.executeJob(job); // here we catch js/network errors
 
       // On successful job completion, remove job
-      this.jobDB.delete(job);
+      await this.jobDB.delete(job);
 
       // Job has processed successfully, fire onSuccess and onComplete job lifecycle callbacks.
       this.worker.executeJobLifecycleCallback('onSuccess', jobName, jobId, jobPayload);
       this.worker.executeJobLifecycleCallback('onComplete', jobName, jobId, jobPayload);
 
+      //console.log('NODE_MODULE.QueueJS.processJob::complete', { job });
     } catch (error) {
+      //console.log('NODE_MODULE.QueueJS.processJob::error', { error });
       // Handle job failure logic, including retries.
       let jobData = JSON.parse(job.data);
 
@@ -361,7 +378,7 @@ export class Queue {
         job.failed = new Date();
       }
 
-      this.jobDB.save(job);
+      await this.jobDB.save(job);
 
       // Execute job onFailure lifecycle callback.
 
@@ -394,6 +411,7 @@ export class Queue {
    * @param jobName {string} - Name associated with job (and related job worker).
    */
   async flushQueue(jobName = null) {
+    //console.log('NODE_MODULE.QueueJS.flushQueue::jobName', { jobName });
 
     if (jobName) {
 
@@ -402,11 +420,11 @@ export class Queue {
 
       if (jobs.length) {
         // NOTE: might not work
-        this.jobDB.delete(jobs);
+        await this.jobDB.delete(jobs);
       }
 
     } else {
-      this.jobDB.deleteAll();
+      await this.jobDB.deleteAll();
     }
 
   }
@@ -422,6 +440,7 @@ export class Queue {
  * @return {Queue} - A queue instance.
  */
 export default async function queueFactory(executeFailedJobsOnStart = false) {
+  //console.log('NODE_MODULE.QueueJS.queueFactory::executeFailedJobsOnStart', { executeFailedJobsOnStart });
 
   const queue = new Queue(executeFailedJobsOnStart);
   await queue.init();
